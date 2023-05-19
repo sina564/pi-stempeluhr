@@ -7,10 +7,11 @@ import time
 import MFRC522
 import signal
 t = time.localtime()
+eingestempelte_chips = {} #uids der eingestempelten chips sammeln
 
 continue_reading = True #rfid anschmeissen
 
-# Funktion zum 0.5 sek buzzern
+#0.5 sek buzzer
 def buzz():
     buzzer_pin = 12                         #buzzer_pin wird definiert
     GPIO.setmode(GPIO.BOARD)
@@ -20,22 +21,40 @@ def buzz():
     GPIO.output(buzzer_pin, GPIO.LOW)       #Stoppe Geraeuschausgabe
     GPIO.cleanup()
 
-# Funktion um cleanup Funktionen durchzuführen wenn das Script mit ctrl+c abgebrochen wird.
+#uid return
+def gib_uid():
+    (status, uid) = MIFAREReader.MFRC522_Anticoll()
+    if status == MIFAREReader.MI_OK:
+        return uid
+    else:
+        return None
+
+def feierabend():
+    buzz()  
+    current_time = time.strftime("%H:%M:%S", t)
+    print("Karte gelesen, ausgestempelt um:", current_time)
+    print("Einen schönen Feierabend!")
+
+def arbeitsstart():
+    buzz() 
+    current_time = time.strftime("%H:%M:%S", t) 
+    print("Karte gelesen, eingestempelt um:", current_time)
+    print("Einen erfolgreichen Arbeitstag!")
+
+# Funktion zum abbrechen mit ctrl+c
 def end_read(signal, frame):
     global continue_reading
     print("Ctrl+C captured, ending read.")
     continue_reading = False
     GPIO.cleanup()
 
-signal.signal(signal.SIGINT, end_read) #signt hook
+signal.signal(signal.SIGINT, end_read)
+MIFAREReader = MFRC522.MFRC522() 
 
-MIFAREReader = MFRC522.MFRC522() # Erstelle ein Objekt aus der Klasse MFRC522
-
-# Welcome message
-print("Wilkommen bei der Stempeluhr.")
+print("Wilkommen bei der Stempeluhr der FIT GmbH.")
 print("Druecke Ctrl-C zum abbrechen.")
 
-# Diese Schleife Sucht dauerhaft nach Chips oder Karten. Wenn eine nah ist bezieht er die Uhrzeit und gibt sie aus.
+# dauerhaftes suchen nach Karten
 while continue_reading:
     
     # Sucht Karte
@@ -43,8 +62,17 @@ while continue_reading:
 
     # Wenn Karte gefunden
     if status == MIFAREReader.MI_OK:
-        current_time = time.strftime("%H:%M:%S", t) #zieht sich die aktuelle zeit
-        print("Karte gelesen, eingestempelt um:", current_time) #gibt uhrzeit des lesens des chips aus
-        continue_reading = False
-        GPIO.cleanup()
-        print("Einen erfolgreichen Arbeitstag!")
+        chip_uid = gib_uid()
+        if chip_uid is not None:
+            if chip_uid in eingestempelte_chips: # AUSSTEMPELN
+                eingestempelte_chips[chip_uid] = not eingestempelte_chips[chip_uid] 
+                feierabend()
+            else: # EINSTEMPELN
+                eingestempelte_chips[chip_uid] = True
+                arbeitsstart()
+        else:
+            # Fehler beim Lesen der Chip-UID
+            print("Fehler beim Lesen der Chip-UID.")
+
+#debug
+print(eingestempelte_chips)
