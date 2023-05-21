@@ -112,7 +112,7 @@ while continue_reading:
     # Wenn Karte gefunden
     if status == MIFAREReader.MI_OK:
         chip_uid = gib_uid()
-        if chip_uid is not None:
+        if chip_uid:
             if chip_uid in eingestempelte_chips: # AUSSTEMPELN
                 eingestempelte_chips[chip_uid] = not eingestempelte_chips[chip_uid] 
                 feierabend()
